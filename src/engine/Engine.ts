@@ -1,27 +1,57 @@
-/**
- * Placeholder for the game engine layer.
- *
- * The engine is responsible for the main game loop (update + step),
- * game state transitions, and coordinating between systems.
- */
+import { GameLoop, LoopOptions } from './Loop';
+import { MapLoader, loadMap } from './MapLoader';
+import { TileRenderer } from './TileRenderer';
 
 export class GameEngine {
-  private running = false;
+  private loop: GameLoop | null = null;
+  private mapLoader: MapLoader | null = null;
+  private renderer: TileRenderer | null = null;
+  private ctx: CanvasRenderingContext2D | null = null;
+  private tileSize = 20;
+
+  constructor(ctx?: CanvasRenderingContext2D) {
+    this.ctx = ctx || null;
+  }
 
   init(): void {
-    console.log('[engine] initializing placeholder');
-    // TODO: instantiate engine with config, register systems
+    if (!this.ctx) {
+      console.log('[engine] initializing placeholder');
+      return;
+    }
+
+    const map = loadMap();
+    this.mapLoader = map;
+    this.renderer = new TileRenderer(this.ctx, this.tileSize);
+
+    console.log(`[engine] loaded map: ${map.width}x${map.height}`);
   }
 
   start(): void {
-    this.running = true;
-    console.log('[engine] starting placeholder');
-    // TODO: begin the update loop
+    if (!this.ctx || !this.renderer) {
+      this.startPlaceholder();
+      return;
+    }
+
+    this.loop = new GameLoop({
+      fps: 30,
+      update: () => this.update(),
+    });
+    this.loop.start();
   }
 
   stop(): void {
-    this.running = false;
-    console.log('[engine] stopping placeholder');
-    // TODO: tear down the update loop
+    this.loop?.stop();
+    console.log('[engine] stopping');
+  }
+
+  private update(): void {
+    if (this.mapLoader && this.renderer) {
+      const map = this.mapLoader.getTiles();
+      this.renderer.renderMap(map, this.mapLoader.width, this.mapLoader.height);
+    }
+  }
+
+  private startPlaceholder(): void {
+    console.log('[engine] starting placeholder');
   }
 }
