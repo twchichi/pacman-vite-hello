@@ -34,9 +34,9 @@ describe('MapLoader', () => {
       expect(stats.powerPellets).toBe(1);
     });
 
-    it('should load exactly 456 walls', () => {
+    it('should load exactly 461 walls', () => {
       const stats = loader.getStatistics();
-      expect(stats.walls).toBe(456);
+      expect(stats.walls).toBe(461);
     });
 
     it('should have correct total tile count', () => {
