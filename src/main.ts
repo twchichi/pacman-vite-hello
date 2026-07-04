@@ -1,12 +1,19 @@
-const canvas = document.getElementById("game") as HTMLCanvasElement;
-const ctx = canvas.getContext("2d");
+import { GameEngine } from './engine/Engine';
+import { GameConfig } from './config/GameConfig';
+import * as gameConstants from './config/gameConstants';
 
-if (ctx) {
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+// Initialize config with defaults (all constants centralized)
+const config = new GameConfig();
+console.log('[config] initialized with', Object.keys(config.getAll()).length, 'constants');
 
-  ctx.fillStyle = "#ff0";
-  ctx.font = "48px monospace";
-  ctx.textAlign = "center";
-  ctx.fillText("Hello Canvas!", canvas.width / 2, canvas.height / 2);
-}
+// Verify constants are accessible
+console.log('  player speed:', config.get('playerSpeedNormal'));
+console.log('  ghost speed:', config.get('ghostSpeedNormal'));
+console.log('  frightened duration (level 1):', gameConstants.getFrightenedDuration(1));
+
+// Initialize the engine
+const engine = new GameEngine();
+engine.init();
+engine.start();
+
+console.log('\n[Pacman Clone] Game initialized successfully!');
