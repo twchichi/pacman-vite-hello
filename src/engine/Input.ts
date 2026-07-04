@@ -148,7 +148,7 @@ export class Input {
 }
 
 /** Convert a keyboard key to a direction. */
-function keyToDirection(key: string): Direction | null {
+export function keyToDirection(key: string): Direction | null {
   switch (key) {
     case 'ArrowUp':
     case 'w':
