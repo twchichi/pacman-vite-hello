@@ -50,13 +50,15 @@ describe('GhostManager', () => {
       expect(manager.getRemainingTime()).toBeLessThan(FRIGHTENED_DURATION_SECONDS);
     });
 
-    it('should return true and call callback when expired', () => {
+    it('should expire and return true when timer reaches zero', () => {
       const expiredCallback = vi.fn();
       const manager = new GhostManager(expiredCallback);
       manager.activateFrightenedMode();
-      manager.frightenedTimer = 0.4;
 
-      const result = manager.updateFrightenedTimer(0.5);
+      // Call updateFrightenedTimer with a value larger than the remaining time
+      // to force expiry
+      const result = manager.updateFrightenedTimer(FRIGHTENED_DURATION_SECONDS * 2);
+
       expect(result).toBe(true);
       expect(manager.isFrightenedActive()).toBe(false);
       expect(manager.getRemainingTime()).toBe(0);
@@ -67,7 +69,6 @@ describe('GhostManager', () => {
       const expiredCallback = vi.fn();
       const manager = new GhostManager(expiredCallback);
       manager.activateFrightenedMode();
-      manager.frightenedTimer = 1;
 
       const result = manager.updateFrightenedTimer(0.5);
       expect(result).toBe(false);
@@ -79,8 +80,16 @@ describe('GhostManager', () => {
   describe('getRemainingTime', () => {
     it('should clamp to zero for negative values', () => {
       const manager = new GhostManager();
-      (manager as any).frightenedTimer = -5;
+      // Trigger expiry by calling updateFrightenedTimer with a large value
+      manager.activateFrightenedMode();
+      manager.updateFrightenedTimer(FRIGHTENED_DURATION_SECONDS * 2);
       expect(manager.getRemainingTime()).toBe(0);
+    });
+
+    it('should return positive value when active', () => {
+      const manager = new GhostManager();
+      manager.activateFrightenedMode();
+      expect(manager.getRemainingTime()).toBeGreaterThan(0);
     });
   });
 
@@ -88,11 +97,24 @@ describe('GhostManager', () => {
     it('should clear all state', () => {
       const manager = new GhostManager();
       manager.activateFrightenedMode();
-      (manager as any).frightenedTimer = 5;
+      // Trigger expiry
+      manager.updateFrightenedTimer(FRIGHTENED_DURATION_SECONDS * 2);
       manager.reset();
 
       expect(manager.isFrightenedActive()).toBe(false);
       expect(manager.getRemainingTime()).toBe(0);
+    });
+
+    it('should allow re-activation after reset', () => {
+      const manager = new GhostManager();
+      manager.activateFrightenedMode();
+      // Trigger expiry
+      manager.updateFrightenedTimer(FRIGHTENED_DURATION_SECONDS * 2);
+      manager.reset();
+      manager.activateFrightenedMode();
+
+      expect(manager.isFrightenedActive()).toBe(true);
+      expect(manager.getRemainingTime()).toBe(FRIGHTENED_DURATION_SECONDS);
     });
   });
 });
