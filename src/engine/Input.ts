@@ -6,7 +6,7 @@
  * so the turn executes at the next valid grid intersection.
  */
 
-export type Direction = 'up' | 'down' | 'left' | 'right';
+export type Direction = 'up' | 'down' | 'left' | 'right' | 'none';
 
 export interface SwipeGesture {
   direction: Direction;
