@@ -37,7 +37,7 @@ export class MapLoader {
   }
 
   isValid(): boolean {
-    if (this.width !== 28 || this.height !== 31) {
+    if (this.width === 0 || this.height === 0) {
       return false;
     }
     for (let y = 0; y < this.height; y++) {
