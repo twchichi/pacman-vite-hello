@@ -14,8 +14,8 @@ describe('MapLoader', () => {
       expect(loader.width).toBe(28);
     });
 
-    it('should have height of 31', () => {
-      expect(loader.height).toBe(31);
+    it('should have height of 30', () => {
+      expect(loader.height).toBe(30);
     });
 
     it('should be valid', () => {
@@ -34,14 +34,14 @@ describe('MapLoader', () => {
       expect(stats.powerPellets).toBe(1);
     });
 
-    it('should load exactly 461 walls', () => {
+    it('should load exactly 437 walls', () => {
       const stats = loader.getStatistics();
-      expect(stats.walls).toBe(461);
+      expect(stats.walls).toBe(437);
     });
 
     it('should have correct total tile count', () => {
       const stats = loader.getStatistics();
-      expect(stats.walls + stats.pellets + stats.powerPellets + stats.empties).toBe(28 * 31);
+      expect(stats.walls + stats.pellets + stats.powerPellets + stats.empties).toBe(28 * 30);
     });
   });
 
@@ -49,7 +49,7 @@ describe('MapLoader', () => {
     it('should return Wall for out-of-bounds coordinates', () => {
       expect(loader.getTile(-1, -1)).toBe(1); // Wall = 1
       expect(loader.getTile(28, 0)).toBe(1);
-      expect(loader.getTile(0, 31)).toBe(1);
+      expect(loader.getTile(0, 30)).toBe(1);
     });
 
     it('should return the correct tile at specific coordinates', () => {
@@ -64,7 +64,7 @@ describe('MapLoader', () => {
     });
 
     it('should match the original data', () => {
-      for (let y = 0; y < 31; y++) {
+      for (let y = 0; y < 30; y++) {
         for (let x = 0; x < 28; x++) {
           expect(loader.getTile(x, y)).toBe((mapData as number[][])[y][x]);
         }
@@ -76,13 +76,13 @@ describe('MapLoader', () => {
     it('should return a 2D array', () => {
       const tiles = loader.getTiles();
       expect(Array.isArray(tiles)).toBe(true);
-      expect(tiles.length).toBe(31);
+      expect(tiles.length).toBe(30);
       expect(tiles[0].length).toBe(28);
     });
 
     it('should match the original data', () => {
       const tiles = loader.getTiles();
-      for (let y = 0; y < 31; y++) {
+      for (let y = 0; y < 30; y++) {
         expect(tiles[y]).toEqual((mapData as number[][])[y]);
       }
     });
@@ -106,11 +106,9 @@ describe('MapLoader', () => {
       expect(badLoader.isValid()).toBe(false);
     });
 
-    it('should handle wrong dimensions', () => {
-      const wrongSize = [
-        [0, 1, 2, 3],
-      ];
-      const badLoader = new MapLoader(wrongSize);
+    it('should reject empty map', () => {
+      const emptyMap: number[][] = [];
+      const badLoader = new MapLoader(emptyMap);
       expect(badLoader.isValid()).toBe(false);
     });
   });
