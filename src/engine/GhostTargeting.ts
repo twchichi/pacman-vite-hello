@@ -3,16 +3,22 @@ import { type Direction } from './Input';
 
 /**
  * Calculate the target position for a ghost based on its name and game state.
+ *
+ * @param ghostName      - Which ghost is calculating its target
+ * @param ghost          - The ghost itself (for Inky's reflection)
+ * @param pacman         - Pac-Man's current grid position
+ * @param blinky         - Blinky's current position (needed for Inky)
+ * @param mode           - 'scatter' or 'chase'
+ * @param pacmanDirection - Pac-Man's current movement direction (defaults to 'right')
  */
 export function calculateTarget(
   ghostName: GhostName,
   ghost: Ghost,
   pacman: Position,
   blinky: Ghost,
-  mode: 'scatter' | 'chase'
+  mode: 'scatter' | 'chase',
+  pacmanDirection: Direction = 'right'
 ): Position {
-  const pacmanDirection = getDirectionFromInput(pacman);
-
   switch (ghostName) {
     case 'blinky':
       return calculateBlinkyTarget(pacman, mode);
@@ -42,6 +48,20 @@ function calculatePinkyTarget(
   if (mode === 'scatter') {
     return SCATTER_CORNERS.pinky;
   }
+
+  // Classic "ghost house overflow" bug:
+  // In the original Pac-Man, when a ghost targets above the top of the screen,
+  // the game wraps the position around, effectively adding a 4-tile LEFT offset
+  // instead of just going 4 tiles UP. We simulate this behavior by always
+  // applying the LEFT offset when Pac-Man is facing UP.
+  if (pacmanDirection === 'up') {
+    const target = {
+      col: pacman.col - 4,
+      row: pacman.row - 4
+    };
+    return wrapPosition(target);
+  }
+
   const target = getPacmanTargetOffset(pacman, pacmanDirection, 4);
   return wrapPosition(target);
 }
