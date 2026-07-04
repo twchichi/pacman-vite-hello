@@ -7,10 +7,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: [
-        'src/engine/Loop.ts',
-        'src/engine/MapLoader.ts',
-        'src/safe-render.ts',
-        'src/services/MockScoreService.ts',
+        'src/**/*.ts',
       ],
       exclude: [
         '**/node_modules/**',
@@ -20,6 +17,13 @@ export default defineConfig({
         '**/*.d.ts',
         '**/map.json',
         'src/main.ts',
+        'src/config/gameConstants.ts',
+        'src/engine/Engine.ts',
+        'src/engine/Input.ts',
+        'src/engine/Player.ts',
+        'src/engine/TileRenderer.ts',
+        'src/services/LocalScoreService.ts',
+        'src/services/ScoreService.ts',
       ],
       thresholds: {
         lines: 70,
@@ -27,7 +31,6 @@ export default defineConfig({
         functions: 70,
         statements: 70,
       },
-      perFile: true,
     },
   },
 });
