@@ -15,9 +15,5 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
-      - name: Run tests with coverage
+      - name: Run tests with coverage (enforces 70% threshold)
         run: npx vitest run --coverage
-      - name: Check coverage threshold
-        run: |
-          echo "Coverage report generated. Check vitest output above."
-          echo "If coverage < 70%, the build should have failed."
