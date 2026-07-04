@@ -280,9 +280,11 @@ export class GameEngine {
     } else {
       // Reset positions but keep score and map state
       this.player.reset(23, 13);
-      for (const name of Object.keys(this.ghosts) as GhostName[]) {
-        this.ghosts[name] = createGhost(name);
-        this.ghosts[name].direction = 'none';
+      if (this.ghosts) {
+        for (const name of Object.keys(this.ghosts) as GhostName[]) {
+          this.ghosts[name] = createGhost(name);
+          this.ghosts[name].direction = 'none';
+        }
       }
       this.ghostState?.reset();
       console.log(`[engine] player died, lives left: ${this.lives}`);

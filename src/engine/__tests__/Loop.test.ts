@@ -3,7 +3,7 @@ import { GameLoop } from '../Loop';
 
 describe('GameLoop', () => {
   let loop: GameLoop;
-  let updateMock: ReturnType<typeof vi.fn>;
+  let updateMock: (dt: number) => void;
   let rafSpy: ReturnType<typeof vi.spyOn>;
   let cafSpy: ReturnType<typeof vi.spyOn>;
 
