@@ -103,10 +103,10 @@ dpadButtons.forEach(btn => {
 
 // Swipe support on canvas area
 const gameWrapper = document.getElementById('game-wrapper') as HTMLElement;
-engine.input.attachSwipe(gameWrapper);
 
-// Keyboard is auto-attached via engine.init()
+// Initialize engine FIRST (creates engine.input), then attach swipe
 engine.init();
+engine.input.attachSwipe(gameWrapper);
 engine.start();
 
 requestAnimationFrame(checkOverlay);
