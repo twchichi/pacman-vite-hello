@@ -1,9 +1,7 @@
 /**
  * Input layer: keyboard (WASD / Arrow keys) + swipe gesture (mobile).
- *
  * Emits direction changes through `onDirectionChange` callback.
- * Direction queue lets players queue a turn while still on current tile
- * so the turn executes at the next valid grid intersection.
+ * Direction queue lets players queue a turn while still on current tile.
  */
 
 export type Direction = 'up' | 'down' | 'left' | 'right' | 'none';
@@ -15,7 +13,7 @@ export interface SwipeGesture {
 export class Input {
   private directionQueue: Direction[] = [];
   private currentDirection: Direction | null = null;
-  private readonly onDirectionChange?: (direction: Direction) => void;
+  public readonly onDirectionChange?: (direction: Direction) => void;
 
   constructor(onDirectionChange?: (direction: Direction) => void) {
     this.onDirectionChange = onDirectionChange;
@@ -46,7 +44,10 @@ export class Input {
       const dir = keyToDirection(keyboardEvent.key);
       if (!dir) return;
       keyboardEvent.preventDefault();
-      this.setDirection(dir);
+      keyboardEvent.stopPropagation();
+      this.currentDirection = dir;
+      this.directionQueue = [dir];
+      this.onDirectionChange?.(dir);
     };
 
     el.addEventListener('keydown', onKey);
@@ -66,34 +67,33 @@ export class Input {
 
   /** Register swipe gesture listeners on the given element. */
   attachSwipe(el: HTMLElement): void {
+    let startX = 0;
+    let startY = 0;
+
     const onTouchStart = (e: TouchEvent): void => {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
-      (el as any).__pacmanTouchStartX = t.clientX;
-      (el as any).__pacmanTouchStartY = t.clientY;
+      startX = t.clientX;
+      startY = t.clientY;
     };
 
     const onTouchEnd = (e: TouchEvent): void => {
-      if (e.touches.length !== 0) return; // still touching
-      const startX = (el as any).__pacmanTouchStartX;
-      const startY = (el as any).__pacmanTouchStartY;
-      if (startX === undefined || startY === undefined) return;
-
-      // Get final touch position from changedTouches (finger lifted)
+      if (e.changedTouches.length === 0) return;
       const changed = e.changedTouches[0];
       const dx = changed.clientX - startX;
       const dy = changed.clientY - startY;
 
       const dir = detectSwipe(dx, dy);
       if (dir) {
-        this.setDirection(dir);
+        this.currentDirection = dir;
+        this.directionQueue = [dir];
+        this.onDirectionChange?.(dir);
       }
     };
 
     el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchend', onTouchEnd, { passive: true });
 
-    // Store for cleanup
     (el as any).__pacmanInputTouchStart = onTouchStart;
     (el as any).__pacmanInputTouchEnd = onTouchEnd;
   }
@@ -112,17 +112,12 @@ export class Input {
 
   /** Set direction, queueing if player already moving. */
   setDirection(dir: Direction): void {
-    // If moving in the same direction, no-op
-    if (this.currentDirection === dir) return;
-
-    // If queue is empty or last queued direction matches, replace
+    this.currentDirection = dir;
     if (this.directionQueue.length === 0 || this.directionQueue[this.directionQueue.length - 1] === dir) {
       this.directionQueue = [dir];
     } else {
       this.directionQueue.push(dir);
     }
-
-    // Fire callback immediately for the first queued direction
     if (this.directionQueue.length === 1) {
       this.onDirectionChange?.(dir);
     }
@@ -141,9 +136,11 @@ export class Input {
     }
   }
 
-  /** Set direction without queuing (e.g. initial direction). */
+  /** Set direction without queuing (used by D-pad buttons). */
   setCurrentDirection(dir: Direction): void {
     this.currentDirection = dir;
+    this.directionQueue = [dir];
+    this.onDirectionChange?.(dir);
   }
 }
 
