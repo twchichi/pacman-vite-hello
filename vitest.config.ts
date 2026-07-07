@@ -21,6 +21,8 @@ export default defineConfig({
         'src/engine/Engine.ts',
         'src/engine/Input.ts',
         'src/engine/Player.ts',
+        'src/entity/Player.ts',
+        'src/engine/PathFinder.ts',
         'src/engine/TileRenderer.ts',
         'src/services/LocalScoreService.ts',
         'src/services/ScoreService.ts',

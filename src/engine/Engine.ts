@@ -2,11 +2,12 @@ import { GameLoop, LoopOptions } from './Loop';
 import { MapLoader, loadMap } from './MapLoader';
 import { TileRenderer } from './TileRenderer';
 import { Input } from './Input';
-import { Player } from './Player';
+import { Player } from '../entity/Player';
 import { GhostManager } from './GhostManager';
 import { GhostStateController } from './GhostStateController';
 import { createAllGhosts, createGhost, type Ghost, type GhostMode, type GhostName, type Position } from './GhostTypes';
 import { calculateTarget } from './GhostTargeting';
+import { PathFinder, moveGhost } from './PathFinder';
 import { BASE_FRIGHTENED_SCORE, MAX_COMBO } from '../config/frightenedConstants';
 const TILE_WALL = 1;
 const TILE_PELLET = 2;
@@ -36,6 +37,9 @@ export class GameEngine {
   private ghostManager: GhostManager | null = null;
   private ghostState: GhostStateController | null = null;
   private frightenedCombo = 0;
+  private pathFinder: PathFinder | null = null;
+  private ghostMode: 'scatter' | 'chase' = 'scatter';
+  private scatterTimer = 0;
 
   private score = 0;
   private lives = 3;
@@ -70,7 +74,7 @@ export class GameEngine {
     this.width = map.width;
     this.height = map.height;
 
-    this.player = new Player(23, 13, 1);
+    this.player = new Player(13 * this.tileSize, 23 * this.tileSize, 120, map, this.tileSize);
     this.input = new Input((dir) => {
       this.handleDirectionChange(dir);
     });
@@ -80,6 +84,9 @@ export class GameEngine {
     this.ghosts = createAllGhosts();
     this.ghostManager = new GhostManager();
     this.ghostState = new GhostStateController(this.ghostManager);
+
+    // Pathfinder for ghost movement (shares the same tile grid as wall collision)
+    this.pathFinder = new PathFinder(this.map);
 
     if (this.ghosts) {
       for (const name of Object.keys(this.ghosts) as GhostName[]) {
@@ -102,7 +109,7 @@ export class GameEngine {
 
     this.loop = new GameLoop({
       fps: 30,
-      update: () => this.update(),
+      update: (dt) => this.update(dt),
     });
     this.loop.start();
   }
@@ -126,9 +133,15 @@ export class GameEngine {
       this.width = map.width;
       this.height = map.height;
       this.mapLoader = map;
+      this.pathFinder = new PathFinder(this.map);
     }
 
-    this.player = new Player(23, 13, 1);
+    if (this.player) {
+      this.player.reset(13 * this.tileSize, 23 * this.tileSize, 120);
+    } else if (this.mapLoader) {
+      this.player = new Player(13 * this.tileSize, 23 * this.tileSize, 120, this.mapLoader, this.tileSize);
+    }
+
     this.input = new Input((dir) => {
       this.handleDirectionChange(dir);
     });
@@ -146,31 +159,33 @@ export class GameEngine {
     console.log('[engine] game reset');
   }
 
-  private update(): void {
+  /**
+   * @param deltaTime Milliseconds since the last tick (from GameLoop's fixed step).
+   */
+  private update(deltaTime: number): void {
     if (!this.mapLoader || !this.renderer || !this.player || !this.ghosts || !this.ghostManager || !this.ghostState) return;
     if (this.gameState !== 'playing') return;
 
     const map = this.map;
+    const dt = deltaTime / 1000; // downstream physics/timers are all seconds-based
     const direction = this.input.getDirection();
 
-    if (direction) {
-      const nextPos = this.player.nextPos(direction);
-      const nextCol = nextPos.col;
-      const nextRow = nextPos.row;
-
-      if (nextCol >= 0 && nextCol < this.width && nextRow >= 0 && nextRow < this.height) {
-        const tile = map[nextRow][nextCol];
-        if (tile !== TILE_WALL) {
-          this.player.move(direction);
-          this.input.clearQueue();
-          this.eatPellet(nextPos.col, nextPos.row, map);
-        }
+    if (direction && direction !== 'none') {
+      this.player.isMoving = true;
+      const moved = this.player.move(direction, dt);
+      if (moved) {
+        this.input.onMoveComplete();
+        const col = Math.round(this.player.x / this.tileSize);
+        const row = Math.round(this.player.y / this.tileSize);
+        this.eatPellet(col, row, map);
       }
     }
 
-    this.ghostManager.updateFrightenedTimer(1 / 30);
+    this.ghostManager.updateFrightenedTimer(dt);
+    this.updateGhostModeTimer(dt);
+    this.moveAllGhosts();
     this.checkGhostCollision();
-    this.updateEatenGhosts();
+    this.updateEatenGhosts(dt);
 
     this.renderer.renderMap(map, this.width, this.height);
     this.renderPlayer();
@@ -204,8 +219,8 @@ export class GameEngine {
   private checkGhostCollision(): void {
     if (!this.player || !this.ghosts || !this.ghostState) return;
 
-    const playerCol = this.player.pos.col;
-    const playerRow = this.player.pos.row;
+    const playerCol = Math.round(this.player.x / this.tileSize);
+    const playerRow = Math.round(this.player.y / this.tileSize);
 
     for (const name of Object.keys(this.ghosts) as GhostName[]) {
       const ghost = this.ghosts[name];
@@ -232,7 +247,7 @@ export class GameEngine {
     if (this.lives <= 0) {
       this.gameState = 'gameOver';
     } else {
-      this.player.reset(23, 13);
+      this.player.reset(13 * this.tileSize, 23 * this.tileSize);
       if (this.ghosts) {
         for (const name of Object.keys(this.ghosts) as GhostName[]) {
           this.ghosts[name] = createGhost(name);
@@ -243,9 +258,9 @@ export class GameEngine {
     }
   }
 
-  private updateEatenGhosts(): void {
+  private updateEatenGhosts(dt: number): void {
     if (!this.ghostState || !this.ghosts) return;
-    const respawned = this.ghostState.updateEatenTimers(1 / 30);
+    const respawned = this.ghostState.updateEatenTimers(dt);
     for (const name of respawned) {
       this.ghosts[name] = createGhost(name);
       this.ghosts[name].direction = 'none';
@@ -254,9 +269,8 @@ export class GameEngine {
 
   private renderPlayer(): void {
     if (!this.ctx || !this.player || !this.renderer) return;
-    const { col, row } = this.player.pos;
-    const px = col * this.tileSize;
-    const py = row * this.tileSize;
+    const px = this.player.x;
+    const py = this.player.y;
     this.ctx.fillStyle = '#ffff00';
     this.ctx.beginPath();
     this.ctx.arc(px + this.tileSize / 2, py + this.tileSize / 2, this.tileSize * 0.4, 0, Math.PI * 2);
@@ -307,5 +321,49 @@ export class GameEngine {
 
   private startPlaceholder(): void {
     console.log('[engine] starting placeholder');
+  }
+
+  private updateGhostModeTimer(dt: number): void {
+    // Classic Pac-Man scatter/chase timing
+    if (!this.pathFinder) return;
+
+    this.scatterTimer += dt;
+
+    if (this.scatterTimer >= 7.0) { // 7 seconds in scatter mode
+      this.scatterTimer = 0;
+      this.ghostMode = this.ghostMode === 'scatter' ? 'chase' : 'scatter';
+    }
+  }
+
+  private moveAllGhosts(): void {
+    if (!this.ghosts || !this.pathFinder || !this.player) return;
+
+    const playerPos: Position = {
+      col: Math.round(this.player.x / this.tileSize),
+      row: Math.round(this.player.y / this.tileSize),
+    };
+
+    for (const name of Object.keys(this.ghosts) as GhostName[]) {
+      const ghost = this.ghosts[name];
+      const blinky = this.ghosts.blinky;
+
+      const target = calculateTarget(name, ghost, playerPos, blinky, this.ghostMode);
+      ghost.target = target;
+
+      const nextPos = moveGhost(ghost.pos, target, this.pathFinder);
+
+      if (nextPos) {
+        // Diff before overwriting ghost.pos, otherwise colDiff/rowDiff are always 0
+        const colDiff = nextPos.col - ghost.pos.col;
+        const rowDiff = nextPos.row - ghost.pos.row;
+
+        if (rowDiff < 0) ghost.direction = 'up';
+        else if (rowDiff > 0) ghost.direction = 'down';
+        else if (colDiff < 0) ghost.direction = 'left';
+        else if (colDiff > 0) ghost.direction = 'right';
+
+        ghost.pos = nextPos;
+      }
+    }
   }
 }
